@@ -1,10 +1,9 @@
-import 'package:bot_toast/bot_toast.dart';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:image_crop/image_crop.dart';
-import 'package:multi_image_crop/multi_image_crop.dart';
 import 'package:multi_image_crop/src/common/util/colors.dart';
 import 'package:multi_image_crop/src/common/util/fade_page_route.dart';
 import 'package:multi_image_crop/src/filter_image.dart';
@@ -12,6 +11,15 @@ import 'package:preload_page_view/preload_page_view.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import 'common/util/colors.dart';
 import 'common/widgets/loader_widget.dart';
+
+class CroppedFile {
+  File? file;
+  String? text;
+  CroppedFile({this.file, this.text});
+
+  factory CroppedFile.fromJson(List<CroppedFile> json) =>
+      CroppedFile(file: json[0].file, text: json[0].text);
+}
 
 class MultiImageCropService extends StatefulWidget {
   const MultiImageCropService(
@@ -70,7 +78,7 @@ class _MultiImageCropServiceState extends State<MultiImageCropService>
   List<File> files;
 
   _MultiImageCropServiceState(this.files);
-  List<TextEditingController> textEditingController = [];
+
   @override
   void initState() {
     super.initState();
@@ -79,9 +87,6 @@ class _MultiImageCropServiceState extends State<MultiImageCropService>
     /// Generates key for each crop ui.
     cropKeyList = List.generate(
         files.length, (index) => GlobalObjectKey<CropState>(index));
-
-    textEditingController =
-        List.generate(files.length, (index) => TextEditingController());
 
     /// Finds extension of file, weather it's a image or anything else.
     mediaType = files[0].path.split('.').last;
@@ -98,7 +103,7 @@ class _MultiImageCropServiceState extends State<MultiImageCropService>
   }
 
   final formKey = GlobalKey<FormState>();
-
+  final TextEditingController textEditingController = TextEditingController();
   @override
   void dispose() {
     controller!.dispose();
@@ -119,7 +124,45 @@ class _MultiImageCropServiceState extends State<MultiImageCropService>
         child: Form(
           key: formKey,
           child: Column(
-            children: [croppingView(), thumbnailsControl(), actionBar()],
+            children: [
+              croppingView(),
+              thumbnailsControl(),
+              Container(
+                height: 90.0,
+                color: CustomColors.primaryColor,
+                child: widget.fromHeroSelection == false
+                    ? Container()
+                    : TextFormField(
+                        controller: textEditingController,
+                        validator: (value) {
+                          if (value!.isEmpty) {
+                            return "Please Enter Name";
+                          }
+                          return null;
+                        },
+                        style: TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          filled: true,
+                          hintText: "Name",
+                          hintStyle: TextStyle(color: Colors.white),
+                          fillColor: Colors.transparent,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(1),
+                            borderSide: BorderSide(color: Color(0xffFFC71C)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(1),
+                            borderSide: BorderSide(color: Color(0xffFFC71C)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(1),
+                            borderSide: BorderSide(color: Color(0xffFFC71C)),
+                          ),
+                        ),
+                      ),
+              ),
+              actionBar()
+            ],
           ),
         ),
       ),
@@ -183,76 +226,72 @@ class _MultiImageCropServiceState extends State<MultiImageCropService>
         ? files[currentPage].path.split('.').last.toLowerCase()
         : '';
     return Expanded(
-        child: PreloadPageView.builder(
-      controller: _pageController,
-      itemCount: files.length,
-      preloadPagesCount: files.length,
-      physics: files.length > 1
-          ? const AlwaysScrollableScrollPhysics()
-          : const NeverScrollableScrollPhysics(),
-      // allowImplicitScrolling: true,
-      onPageChanged: (page) async {
-        await _autoScrollController!
-            .scrollToIndex(page, preferPosition: AutoScrollPosition.middle);
-        setState(() {
-          currentPage = page;
-          mediaType = files[page].path.split('.').last;
-        });
-      },
-      itemBuilder: (context, index) {
-        return Column(
-          children: [
-            Expanded(
-              flex: 5,
-              child: Crop(
-                image: FileImage(File(files[index].path)),
-                key: cropKeyList[index],
-                alwaysShowGrid: widget.alwaysShowGrid,
-                aspectRatio: widget.aspectRatio,
-              ),
-            ),
-            Expanded(
-              flex: 1,
-              child: Container(
-                // height: 90,
-                width: MediaQuery.of(context).size.width,
-                color: CustomColors.primaryColor,
-                child: widget.fromHeroSelection == false
-                    ? Container()
-                    : TextFormField(
-                        controller: textEditingController[index],
-                        validator: (value) {
-                          if (value!.isEmpty) {
-                            BotToast.showText(text: "Please fill all name");
-                            return "Please Enter Name";
-                          }
-                          return null;
-                        },
-                        style: TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          filled: true,
-                          hintText: "Name",
-                          hintStyle: TextStyle(color: Colors.white),
-                          fillColor: Colors.transparent,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(1),
-                            borderSide: BorderSide(color: Color(0xffFFC71C)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(1),
-                            borderSide: BorderSide(color: Color(0xffFFC71C)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(1),
-                            borderSide: BorderSide(color: Color(0xffFFC71C)),
-                          ),
-                        ),
-                      ),
-              ),
-            ),
-          ],
-        );
-      },
+        child: Stack(
+      children: [
+        PreloadPageView.builder(
+          controller: _pageController,
+          itemCount: files.length,
+          preloadPagesCount: files.length,
+          physics: files.length > 1
+              ? const AlwaysScrollableScrollPhysics()
+              : const NeverScrollableScrollPhysics(),
+          // allowImplicitScrolling: true,
+          onPageChanged: (page) async {
+            await _autoScrollController!
+                .scrollToIndex(page, preferPosition: AutoScrollPosition.middle);
+            setState(() {
+              currentPage = page;
+              mediaType = files[page].path.split('.').last;
+            });
+          },
+          itemBuilder: (context, index) {
+            return Crop(
+              image: FileImage(File(files[index].path)),
+              key: cropKeyList[index],
+              alwaysShowGrid: widget.alwaysShowGrid,
+              aspectRatio: widget.aspectRatio,
+            );
+          },
+        ),
+        // Positioned(
+        //     bottom: 0,
+        //     child: Visibility(
+        //       visible: extension != 'mp4' ||
+        //           extension != 'mov' ||
+        //           extension != '3gp' ||
+        //           extension != 'm3u8' ||
+        //           extension != 'avi',
+        //       child: swapToFilter(
+        //           title: 'Swipe up to add filters',
+        //           width: MediaQuery.of(context).size.width,
+        //           height: MediaQuery.of(context).size.height * 0.15,
+        //           direction: DirectionAxis.y,
+        //           onTrigger: () => Navigator.push(
+        //               context,
+        //               FadePageRoute(
+        //                   fullscreenDialog: true,
+        //                   builder: (_) => FilterImage(
+        //                         image: files[currentPage],
+        //                         onFiltered: (ByteData imageMemory) async {
+        //                           final buffer = imageMemory.buffer;
+        //                           File tempFile =
+        //                               await File(files[currentPage].path)
+        //                                   .writeAsBytes(buffer.asUint8List(
+        //                                       imageMemory.offsetInBytes,
+        //                                       imageMemory.lengthInBytes));
+        //                           if (kDebugMode) {
+        //                             print('Filter applied successfully...');
+        //                           }
+        //                           setState(() {
+        //                             files[currentPage] = tempFile;
+        //                           });
+        //                           imageCache!.clearLiveImages();
+        //                           imageCache!.clear();
+        //                           setState(() {});
+        //                         },
+        //                       )))),
+        //     ))
+      ],
     ));
   }
 
@@ -292,7 +331,7 @@ class _MultiImageCropServiceState extends State<MultiImageCropService>
                               : CustomColors.primaryColor)),
                   child: Image.file(
                     File(files[index].path),
-                    fit: BoxFit.fill,
+                    fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return const SizedBox(
                           height: 90,
@@ -332,8 +371,8 @@ class _MultiImageCropServiceState extends State<MultiImageCropService>
           sample.delete();
           // _lastCropped?.delete();
           _lastCropped = file;
-          cropFiles.add(
-              CroppedFile(file: file, text: textEditingController[i].text));
+          cropFiles
+              .add(CroppedFile(file: file, text: textEditingController.text));
         }
         Navigator.of(context, rootNavigator: true).pop();
         Navigator.of(context).pop(cropFiles);

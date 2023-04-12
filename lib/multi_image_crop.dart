@@ -19,7 +19,7 @@ class MultiImageCrop {
     double? pixelRatio,
     Color? activeColor,
     Function? callBack,
-    Function(List<CroppedFile>)? heroCallBack,
+    Function(File, String)? heroCallBack,
   }) async {
     Navigator.push(
         context,
@@ -36,23 +36,12 @@ class MultiImageCrop {
       if (value != null) {
         print(value);
         if (fromHeroSelection == true) {
-          List<CroppedFile> croppedFile = value as List<CroppedFile>;
-          print(croppedFile);
-          // List<CroppedFile>.from(value.map((x) => CroppedFile.fromJson(x)));
-          heroCallBack!(croppedFile);
+          CroppedFile croppedFile = CroppedFile.fromJson(value);
+          heroCallBack!(value, value);
         } else {
           callBack!(value);
         }
       }
     });
   }
-}
-
-class CroppedFile {
-  File? file;
-  String? text;
-  CroppedFile({this.file, this.text});
-
-  factory CroppedFile.fromJson(List<CroppedFile> json) =>
-      CroppedFile(file: json[0].file, text: json[0].text);
 }
