@@ -20,6 +20,7 @@ class MultiImageCropService extends StatefulWidget {
       required this.aspectRatio,
       this.activeColor,
       this.isLeading = true,
+      this.noBack = false,
       this.fromHeroSelection = false,
       required this.alwaysShowGrid,
       this.pixelRatio})
@@ -31,6 +32,7 @@ class MultiImageCropService extends StatefulWidget {
   final Color? activeColor;
   final bool alwaysShowGrid;
   final bool isLeading;
+  final bool noBack;
   final bool fromHeroSelection;
 
   @override
@@ -367,6 +369,21 @@ class _MultiImageCropServiceState extends State<MultiImageCropService>
 
   /// List of available options perform on current position image.
   Widget actionBar() {
+    if(widget.noBack == true){
+      return Container(
+        color: CustomColors.primaryColorLight,
+        child: Center(
+          child: IconButton(
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            onPressed: () => cropImage(),
+            tooltip: 'Crop',
+            icon: const Icon(Icons.check, color: Colors.white),
+          ),
+        ),
+      );
+    }
+
     return Container(
       color: CustomColors.primaryColorLight,
       child: widget.isLeading == false
